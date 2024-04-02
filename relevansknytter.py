@@ -100,13 +100,10 @@ class MainWindow(QMainWindow):
 
     def finn_emnekoder_og_aarstall_i_tekst(self, tekst):
         emnekoder_og_aarstall = []
-        # Mønsteret søker etter emnekode på en linje, overser den neste linjen (beskrivelsen),
-        # og fanger så opp årstallet og sesongen på den tredje linjen.
         mønster = re.compile(
-            r'([A-ZÆØÅ]+\d{2,})\s*\r?\n.*\r?\n\s*(\d{4})\s*(Høst|Vår)',
-            re.MULTILINE
+        r'([A-ZÆØÅ]{2,}[\dA-ZÆØÅ\-]*)\s*\r?\n[^\r\n]*\r?\n\s*(\d{4})\s*(Høst|Vår)',
+        re.MULTILINE
         )
-
         funn = mønster.findall(tekst)
         for emnekode, aarstall, _ in funn:
             emnekoder_og_aarstall.append((emnekode, aarstall))
