@@ -79,11 +79,13 @@ class MainWindow(QMainWindow):
         samlet_tekst = ""
         for side in doc:
             samlet_tekst += side.get_text("text")
+        print(f"Tekst fra pdf i fullformat: {samlet_tekst}")
         return samlet_tekst
 
     def filtrer_eksplisitte_ord(tekst, ord_liste):
         for ord in ord_liste:
             tekst = re.sub(f'\\b{ord}\\b', '', tekst, flags=re.IGNORECASE)
+        
         return tekst
 
     def finn_emnekoder_i_tekst(tekst):
@@ -100,15 +102,34 @@ class MainWindow(QMainWindow):
 
     def finn_emnekoder_og_aarstall_i_tekst(self, tekst):
         emnekoder_og_aarstall = []
-        mønster = re.compile(
-        r'([A-ZÆØÅ]{2,}[\dA-ZÆØÅ\-]*)\s*\r?\n[^\r\n]*\r?\n\s*(\d{4})\s*(Høst|Vår)',
-        re.MULTILINE
-        )
-        funn = mønster.findall(tekst)
-        for emnekode, aarstall, _ in funn:
-            emnekoder_og_aarstall.append((emnekode, aarstall))
+        semester_mønster = re.compile(r'(\d{4})\s*(Høst|Vår)')
+        semester_funn = semester_mønster.finditer(tekst)
 
+        for match in semester_funn:
+            aarstall, semester = match.groups()
+            # Søk bakover fra starten av semester-matchen
+            tekst_bakover = tekst[:match.start()]
+            emnekode_mønster = re.compile(r'\b([A-ZÆØÅ\d\-]+)\b')
+            emnekode_funn = list(emnekode_mønster.finditer(tekst_bakover))
+            
+            ord_telt = 0
+            linjer_telt = 0
+
+            for emnekode_match in reversed(emnekode_funn):
+                emnekode = emnekode_match.group()
+                if len(re.findall(r'[A-ZÆØÅ]', emnekode)) >= 3 and re.search(r'\d', emnekode):
+                    emnekoder_og_aarstall.append((emnekode, aarstall))
+                    break  # Stopp når en gyldig kode er funnet
+                ord_telt += len(emnekode.split())
+                linjer_telt += emnekode.count('\n')
+                # Avbryt søket hvis vi har telt mer enn 25 ord eller 3 linjeskift
+                if ord_telt > 25 or linjer_telt >= 3:
+                    break
+
+        print(f"Antatte emnekoder og årstall: {emnekoder_og_aarstall}")
         return emnekoder_og_aarstall
+
+#Finn Høst og Vår. Gå bakover til vi finner et ord som inneholder mist tre store bokstaver og ingen små bokstaver. Dette er emnekoden.
 
    # pdf_fil = 'Resultater_fra_Vitnemalsportalen.pdf'
    # tekst = hent_tekst_fra_pdf(pdf_fil)
@@ -123,8 +144,6 @@ class MainWindow(QMainWindow):
         query = {
             "tabell_id": 208,
             "api_versjon": 1,
-            "statuslinje": "N",
-            "decimal_separator": ".",
             "filter": [
                 {
                     "variabel": "Emnekode",
